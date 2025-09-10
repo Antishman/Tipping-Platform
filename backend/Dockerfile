@@ -21,29 +21,26 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
 
-# Copy existing application
+# Copy application
 COPY . .
 
-# Set permissions for storage and cache
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Set environment variables (Render uses its ENV)
-ENV APP_ENV=production
-
 # Cache config, routes, and views
 RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
-# Link storage for public access
+# Link storage
 RUN php artisan storage:link
 
-# Expose port (Render will inject $PORT)
-EXPOSE 10000
+# Expose port (Render injects $PORT)
+EXPOSE 8080
 
-# Run migrations and start PHP server on container start
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
+# Start PHP-FPM server
+CMD ["php-fpm"]
