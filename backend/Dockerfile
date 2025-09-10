@@ -1,5 +1,5 @@
-# Use official PHP 8.2 + FPM image
-FROM php:8.2-fpm
+# Use PHP CLI (not FPM) for built-in server
+FROM php:8.2-cli
 
 # Set working directory
 WORKDIR /var/www/html
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
 
-# Copy application
+# Copy Laravel app
 COPY . .
 
 # Set permissions
@@ -31,7 +31,10 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Cache config, routes, and views
+# Set environment
+ENV APP_ENV=production
+
+# Cache config, routes, views
 RUN php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
@@ -39,8 +42,9 @@ RUN php artisan config:cache \
 # Link storage
 RUN php artisan storage:link
 
-# Expose port (Render injects $PORT)
-EXPOSE 8080
+# Expose port from Render
+EXPOSE 10000
 
-# Start PHP-FPM server
-CMD ["php-fpm"]
+# Start server and run migrations
+CMD php artisan migrate --force && \
+    php artisan serve --host=0.0.0.0 --port=$PORT
